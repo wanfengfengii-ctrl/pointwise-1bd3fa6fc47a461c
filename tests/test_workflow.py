@@ -48,6 +48,20 @@ def put_bridge(connection, batch_id='bridge', *, linked=True, public=('A', 'B'))
     return put_batch(connection, batch_id, tuple(Segment(part) for part in ids), public, zero_bases(*ids), extras)
 
 
+def put_reassign(connection, batch_id='reassign'):
+    ids = ('C', 'A', 'H-internal', 'B')
+    bases = tuple(
+        BaseTiming(f'base-{part}-{disposition}', part, disposition, 1 if (part, disposition) == ('C', 'retest') else 0)
+        for part in ids
+        for disposition in ('release', 'retest')
+    )
+    extras = (
+        ChangeoverTiming('edge-ah', 'A', 'H-internal', 1),
+        ChangeoverTiming('edge-hb', 'H-internal', 'B', 1),
+    )
+    return put_batch(connection, batch_id, tuple(Segment(part) for part in ids), ('C', 'A', 'B'), bases, extras)
+
+
 def external_fixture(*, analysis_id='external-bridge', linked=True):
     return json.dumps({
         'version': 1,

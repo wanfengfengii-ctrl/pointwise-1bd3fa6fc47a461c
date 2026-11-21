@@ -5,7 +5,8 @@ from uuid import uuid4
 from analysis.artifacts import AnalysisArtifact
 from review.imports import resolve_analysis
 from review.requests import ReviewRequest, validate_request
-from review.store import DecisionReport, ReviewStore
+from review.slots import assign_slots, validate_compatibility, validate_open_slots
+from review.store import DecisionReport, ReviewStore, WorkOrderReport
 
 
 def complete_plan(analysis: AnalysisArtifact, request: ReviewRequest) -> tuple[tuple[str, str], ...] | None:
@@ -55,4 +56,35 @@ def review_plan(
             plan=plan,
         )
         store.insert_report(report)
+    return report
+
+
+def issue_work_order(
+    connection: sqlite3.Connection,
+    requirements,
+    open_slots,
+    compatibility,
+    *,
+    analysis_id: str,
+) -> WorkOrderReport:
+    store = ReviewStore(connection)
+    connection.execute('BEGIN IMMEDIATE')
+    with connection:
+        if type(analysis_id) is not str or not analysis_id:
+            raise ValueError('invalid analysis id')
+        analysis = store.load_analysis(analysis_id)
+        request = validate_request(analysis.public_segments, requirements)
+        slots = validate_open_slots(open_slots)
+        compat = validate_compatibility(analysis.public_segments, slots, compatibility)
+        assignment = assign_slots(analysis, request, slots, compat)
+        report = WorkOrderReport(
+            report_id=f'report-{uuid4().hex}',
+            analysis_id=analysis.analysis_id,
+            request=request,
+            open_slots=slots,
+            compatibility=compat,
+            status='infeasible' if assignment is None else 'approved',
+            assignment=assignment,
+        )
+        store.insert_work_order(report)
     return report

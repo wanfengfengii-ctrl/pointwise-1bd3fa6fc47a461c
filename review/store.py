@@ -18,6 +18,17 @@ class DecisionReport:
     plan: tuple[tuple[str, str], ...] | None
 
 
+@dataclass(frozen=True, slots=True)
+class WorkOrderReport:
+    report_id: str
+    analysis_id: str
+    request: ReviewRequest
+    open_slots: tuple[str, ...]
+    compatibility: tuple[tuple[str, str, str], ...]
+    status: str
+    assignment: tuple[tuple[str, str, str], ...] | None
+
+
 class ReviewStore:
     def __init__(self, connection: sqlite3.Connection):
         self.connection = connection
@@ -54,8 +65,25 @@ class ReviewStore:
                         OR (status = 'infeasible' AND plan IS NULL))
                 )
             ''')
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS work_order_reports (
+                    report_id TEXT PRIMARY KEY NOT NULL,
+                    analysis_id TEXT NOT NULL REFERENCES accepted_analyses(analysis_id),
+                    request TEXT NOT NULL,
+                    open_slots TEXT NOT NULL,
+                    compatibility TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    assignment TEXT,
+                    CHECK ((status = 'approved' AND assignment IS NOT NULL)
+                        OR (status = 'infeasible' AND assignment IS NULL))
+                )
+            ''')
             conn.execute('SELECT analysis_id, artifact FROM accepted_analyses LIMIT 0')
             conn.execute('SELECT report_id, analysis_id, request, status, plan FROM decision_reports LIMIT 0')
+            conn.execute(
+                'SELECT report_id, analysis_id, request, open_slots, compatibility, status, assignment'
+                ' FROM work_order_reports LIMIT 0'
+            )
             if fresh:
                 conn.execute(f'PRAGMA application_id = {_OFFLINE_ID}')
                 conn.execute('PRAGMA user_version = 1')
@@ -93,4 +121,39 @@ class ReviewStore:
         return DecisionReport(
             report_id, analysis_id, ReviewRequest(assignments), status,
             None if plan is None else tuple(tuple(entry) for entry in json.loads(plan)),
+        )
+
+    def insert_work_order(self, report: WorkOrderReport) -> None:
+        request = json.dumps(report.request.assignments, separators=(',', ':'))
+        assignment = None if report.assignment is None else json.dumps(report.assignment, separators=(',', ':'))
+        self.connection.execute('''
+            INSERT INTO work_order_reports
+                (report_id, analysis_id, request, open_slots, compatibility, status, assignment)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            report.report_id,
+            report.analysis_id,
+            request,
+            json.dumps(report.open_slots, separators=(',', ':')),
+            json.dumps(report.compatibility, separators=(',', ':')),
+            report.status,
+            assignment,
+        ))
+
+    def load_work_order(self, report_id: str) -> WorkOrderReport:
+        row = self.connection.execute('''
+            SELECT analysis_id, request, open_slots, compatibility, status, assignment
+            FROM work_order_reports WHERE report_id = ?
+        ''', (report_id,)).fetchone()
+        if row is None:
+            raise LookupError(f'unknown work order report {report_id}')
+        analysis_id, request, open_slots, compatibility, status, assignment = row
+        return WorkOrderReport(
+            report_id=report_id,
+            analysis_id=analysis_id,
+            request=ReviewRequest(tuple(tuple(entry) for entry in json.loads(request))),
+            open_slots=tuple(json.loads(open_slots)),
+            compatibility=tuple(tuple(entry) for entry in json.loads(compatibility)),
+            status=status,
+            assignment=None if assignment is None else tuple(tuple(entry) for entry in json.loads(assignment)),
         )
