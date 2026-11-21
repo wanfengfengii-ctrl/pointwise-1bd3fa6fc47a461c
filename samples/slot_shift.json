@@ -1,0 +1,15 @@
+{
+  "shared": {
+    "open_slots": ["L1", "R1"],
+    "compatibility": [["A", "release", "L1"], ["A", "retest", "R1"], ["B", "release", "L1"], ["B", "retest", "R1"]],
+    "actuals": [["A", "release", "L9"]]
+  },
+  "alternate": {
+    "open_slots": ["L1", "L2", "R1"],
+    "compatibility": [["A", "release", "L1"], ["A", "release", "L2"], ["A", "retest", "R1"], ["B", "retest", "R1"]]
+  },
+  "reassign": {
+    "open_slots": ["L1", "L2", "R1"],
+    "compatibility": [["C", "release", "L1"], ["C", "release", "L2"], ["A", "release", "L1"], ["A", "retest", "R1"], ["B", "release", "L1"], ["B", "retest", "R1"]]
+  }
+}

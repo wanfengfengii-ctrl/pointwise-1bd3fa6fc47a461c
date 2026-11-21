@@ -1,0 +1,8 @@
+{
+  "requests": {
+    "conflict": {"A": "retest", "B": "release"},
+    "reverse": {"A": "release", "B": "retest"},
+    "work_order": {"A": "retest"}
+  },
+  "actuals": [["B", "release"], ["A", "retest"]]
+}

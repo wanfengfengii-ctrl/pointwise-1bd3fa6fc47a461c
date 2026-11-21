@@ -1,0 +1,15 @@
+{
+  "batch_id": "HL-42",
+  "segments": ["A", "H-internal", "B", "C"],
+  "public_segments": ["C", "A", "B"],
+  "policy_version": "line-v1",
+  "base_timings": [
+    ["a-ret", "A", "retest", 0], ["a-rel", "A", "release", 0],
+    ["h-ret", "H-internal", "retest", 0], ["h-rel", "H-internal", "release", 0],
+    ["b-ret", "B", "retest", 0], ["b-rel", "B", "release", 0],
+    ["c-ret", "C", "retest", 0], ["c-rel", "C", "release", 3]
+  ],
+  "changeovers": [["edge-ah", "A", "H-internal", 1], ["edge-hb", "H-internal", "B", 1]],
+  "correction": {"timing_id": "c-rel", "amount": 2},
+  "station_plan": {"A": "retest", "H-internal": "release", "B": "release", "C": "retest"}
+}
